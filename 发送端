@@ -1,0 +1,88 @@
+//本系统从10引脚接收二进制数据，从12，13引脚输出二进制数据，接收到的数据通过一个发光二极管（连11引脚）和一个光电二极管（连A0引脚）进行传输
+//本系统设置一个时间线t来保证发送与接收同时性
+//本系统在有外界干扰下不传输数据，只接收数据并存储到缓存中，检测到外界无干扰时开始传输数据;
+//光电转换过程中设置校验码检验正确性，若正确则在缓存中删除已传输数据，若不正确则继续存储并等待下一次无干扰情况；
+#define ADpin A0
+#define led 7
+#define in 10
+#define t 11
+#define out 13
+int i,j,m,n,k=0;
+int numdata; 
+bool start=false;
+int a[100];
+int buffer[2]={0,0},b[2];//校验码，用来检验光电传输过程中是否有干扰，其中buffer[0]为有效数据，buffer[1]为校验码0，若接收到buffer[1]为1,则数据有误。
+
+
+void setup() {
+   pinMode(in,INPUT);
+   pinMode(t,OUTPUT);
+   pinMode(led,OUTPUT);
+   pinMode(out, OUTPUT);
+}
+
+void loop(){
+    //unsigned long t1=millis();
+    //读取数据
+    numdata = digitalRead(in);
+    
+    //判断传输是否开始
+    if(numdata==1)
+    {
+      start=true;      
+    }
+   if(start)
+   {
+      a[i]=numdata;//缓存接收到的数据到a[i]
+      i++;
+      if(analogRead(ADpin)<=20)//判断外界环境是否有干扰，无干扰则开始传输
+       {
+           buffer[0]=a[0];
+           //光电传输过程
+           for(j=0;j<=1;j++)
+          {
+             if(buffer[j]==1)
+            {
+              digitalWrite(led,HIGH);//传输数据
+              //接收数据，可能有干扰
+              if(analogRead(ADpin)>20)
+              {
+                b[j]=1;
+              }
+              else b[j]=0;
+            }
+            if(buffer[j]==0)
+            {
+              digitalWrite(led,LOW);//传输数据
+              //接收数据，可能有干扰
+              if(analogRead(ADpin)>20)
+              {
+                b[j]=1;
+              }
+              else b[j]=0;
+            }
+          }
+          //校验码验证
+          if(b[1]==0)
+          {
+             //删除缓存中已传输的数据
+            for(m=0;m<i;m++)
+            {
+             a[m]=a[m+1];
+            }
+            i--;
+            if(b[0]==0)//传回0
+            {
+              digitalWrite(t,HIGH);
+              digitalWrite(out,LOW);   
+            }
+            else  //传回1
+            {
+              digitalWrite(t,HIGH);
+              digitalWrite(out, HIGH);
+              
+            }
+          }
+         }        
+       }    
+}
